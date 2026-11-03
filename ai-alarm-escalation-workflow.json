@@ -7,13 +7,13 @@
         "path": "alarm-in",
         "options": {}
       },
-      "id": "webhook-in",
+      "id": "abf5d39d-69c8-4e70-8ed7-2a01382992c1",
       "name": "Alarm Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        240,
-        400
+        8320,
+        2368
       ],
       "webhookId": "alarm-in-webhook"
     },
@@ -21,26 +21,26 @@
       "parameters": {
         "jsCode": "// Normalize an incoming SCADA/IoT alarm into a standard shape.\n// Expected POST body (flexible): { source, alarmId, severity, message, timestamp }\n// n8n wraps a webhook POST body under $json.body.\nconst b = $json.body || $json;\nconst alarm = {\n  source: b.source || 'unknown-source',\n  alarmId: b.alarmId || b.id || 'unknown-id',\n  severity: String(b.severity || 'info').toLowerCase(),\n  message: b.message || b.text || '',\n  timestamp: b.timestamp || new Date().toISOString(),\n};\n// Stable dedup key: one alarm from one source.\nalarm.dedupKey = alarm.source + '::' + alarm.alarmId;\nreturn [{ json: alarm }];\n"
       },
-      "id": "c-normalize",
+      "id": "c6d2c21a-7a28-4027-a88c-e35dbe65e751",
       "name": "Normalize Alarm",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        460,
-        400
+        8544,
+        2368
       ]
     },
     {
       "parameters": {
-        "jsCode": "// FLOOD / CHATTER SUPPRESSION.\n// Industrial alarms can re-fire many times a minute (a flapping sensor).\n// Without this, every repeat would wake someone. We remember each\n// dedupKey's last-seen time in workflow static data and suppress repeats\n// inside a window. This is the piece a generic 'send an alert' flow skips.\nconst WINDOW_MS = 5 * 60 * 1000; // 5 minutes \u2014 tune to your environment\nconst a = $json;\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || {};\nconst now = Date.now();\n// prune old entries so static data does not grow unbounded\nfor (const k of Object.keys(store.seen)) {\n  if (now - store.seen[k] > WINDOW_MS) delete store.seen[k];\n}\nconst last = store.seen[a.dedupKey];\nconst suppressed = last != null && (now - last) < WINDOW_MS;\nif (!suppressed) store.seen[a.dedupKey] = now;\nreturn [{ json: { ...a, suppressed } }];\n"
+        "jsCode": "// FLOOD / CHATTER SUPPRESSION.\n// Industrial alarms can re-fire many times a minute (a flapping sensor).\n// Without this, every repeat would wake someone. We remember each\n// dedupKey's last-seen time in workflow static data and suppress repeats\n// inside a window. This is the piece a generic 'send an alert' flow skips.\nconst WINDOW_MS = 5 * 60 * 1000; // 5 minutes — tune to your environment\nconst a = $json;\nconst store = $getWorkflowStaticData('global');\nstore.seen = store.seen || {};\nconst now = Date.now();\n// prune old entries so static data does not grow unbounded\nfor (const k of Object.keys(store.seen)) {\n  if (now - store.seen[k] > WINDOW_MS) delete store.seen[k];\n}\nconst last = store.seen[a.dedupKey];\nconst suppressed = last != null && (now - last) < WINDOW_MS;\nif (!suppressed) store.seen[a.dedupKey] = now;\nreturn [{ json: { ...a, suppressed } }];\n"
       },
-      "id": "c-flood",
+      "id": "24bde0c0-cd72-4f0d-a96f-80402025079e",
       "name": "Flood Suppression",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        460,
-        560
+        8768,
+        2368
       ]
     },
     {
@@ -48,6 +48,7 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
+            "leftValue": "",
             "typeValidation": "loose",
             "version": 2
           },
@@ -67,26 +68,26 @@
         },
         "options": {}
       },
-      "id": "if-sup",
+      "id": "47f9d327-8d88-45bc-9bb6-31cb44e42761",
       "name": "Suppressed?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        680,
-        560
+        8992,
+        2368
       ]
     },
     {
       "parameters": {
         "jsCode": "// Audit record: alarm suppressed as a duplicate within the window.\n// Wire this to your log destination (Google Sheets / database).\nreturn [{ json: { audit: 'suppressed', ...$json, loggedAt: new Date().toISOString() } }];\n"
       },
-      "id": "log-sup",
+      "id": "c0da89cb-8d15-4e08-ba4a-598e514951e1",
       "name": "Log: Suppressed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        680
+        9200,
+        2544
       ]
     },
     {
@@ -110,30 +111,30 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: \"claude-3-5-sonnet-latest\", max_tokens: 200, messages: [{ role: \"user\", content: \"Summarize this industrial/IoT alarm in one sentence, then give the single most likely cause and a priority (low/medium/high). Do NOT decide whether to suppress it or who to notify \u2014 deterministic rules handle that. Alarm: \" + JSON.stringify($json) }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-3-5-sonnet-latest\", max_tokens: 200, messages: [{ role: \"user\", content: \"Summarize this industrial/IoT alarm in one sentence, then give the single most likely cause and a priority (low/medium/high). Do NOT decide whether to suppress it or who to notify — deterministic rules handle that. Alarm: \" + JSON.stringify($json) }] }) }}",
         "options": {}
       },
-      "id": "http-triage",
+      "id": "a808380b-991c-4fa6-b400-b40c8decc7c4",
       "name": "Claude Triage (advisory)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        680,
-        400
+        9200,
+        2368
       ],
-      "onError": "continueRegularOutput"
+      "disabled": true
     },
     {
       "parameters": {
-        "jsCode": "// Re-attach the alarm fields to the (advisory) triage result.\n// The HTTP node's output is the API response, so we pull the original\n// alarm from the upstream node and add the triage text if we got any.\n// Because the triage step is non-blocking, triage may be empty here \u2014\n// that is fine, escalation proceeds regardless.\nconst alarm = $('Flood Suppression').item.json;\nlet triage = '';\ntry { triage = $json.content?.[0]?.text || ''; } catch (e) { triage = ''; }\nreturn [{ json: { ...alarm, triage } }];\n"
+        "jsCode": "// Re-attach the alarm fields to the (advisory) triage result.\n// The HTTP node's output is the API response, so we pull the original\n// alarm from the upstream node and add the triage text if we got any.\n// Because the triage step is non-blocking, triage may be empty here —\n// that is fine, escalation proceeds regardless.\nconst alarm = $('Flood Suppression').item.json;\nlet triage = '';\ntry { triage = $json.content?.[0]?.text || ''; } catch (e) { triage = ''; }\nreturn [{ json: { ...alarm, triage } }];\n"
       },
-      "id": "c-attach",
+      "id": "a6c5cf21-1ebf-4fcb-8e64-75fbc458b18a",
       "name": "Attach Triage",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        400
+        9424,
+        2368
       ]
     },
     {
@@ -144,6 +145,7 @@
               "conditions": {
                 "options": {
                   "caseSensitive": false,
+                  "leftValue": "",
                   "typeValidation": "loose",
                   "version": 2
                 },
@@ -167,6 +169,7 @@
               "conditions": {
                 "options": {
                   "caseSensitive": false,
+                  "leftValue": "",
                   "typeValidation": "loose",
                   "version": 2
                 },
@@ -192,51 +195,81 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "severity-switch",
+      "id": "48949921-497b-4c0f-a6e0-bacd00169d09",
       "name": "Severity Route",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        1120,
-        400
+        9648,
+        2368
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://REPLACE-WITH-YOUR-NOTIFICATION-ENDPOINT.example.com/send",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ to: \"on-call-tier-1\", severity: $json.severity, summary: ($json.triage || $json.message), source: $json.source, alarmId: $json.alarmId, ackUrl: $execution.resumeUrl }) }}",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f-to",
+              "name": "to",
+              "value": "on-call-tier-1",
+              "type": "string"
+            },
+            {
+              "id": "f-sev",
+              "name": "severity",
+              "value": "={{ $json.severity }}",
+              "type": "string"
+            },
+            {
+              "id": "f-sum",
+              "name": "summary",
+              "value": "={{ $json.triage || $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "f-src",
+              "name": "source",
+              "value": "={{ $json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "f-aid",
+              "name": "alarmId",
+              "value": "={{ $json.alarmId }}",
+              "type": "string"
+            },
+            {
+              "id": "f-ack",
+              "name": "ackUrl",
+              "value": "={{ $execution.resumeUrl }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-t1",
+      "id": "adb6b791-6cf0-48f2-bceb-633f9e4335c8",
       "name": "Notify Tier 1 (On-Call)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        1340,
-        240
-      ],
-      "onError": "continueRegularOutput"
+        9872,
+        2368
+      ]
     },
     {
       "parameters": {
         "resume": "webhook",
-        "options": {
-          "limitWaitTime": true,
-          "limitType": "afterTimeInterval",
-          "resumeAmount": 5,
-          "resumeUnit": "minutes"
-        }
+        "options": {}
       },
-      "id": "wait-1",
+      "id": "65d4f9f6-afda-45d4-a8db-752344699a00",
       "name": "Wait for ACK (Tier 1)",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        1560,
-        240
+        10080,
+        2368
       ],
       "webhookId": "wait-ack-1"
     },
@@ -245,6 +278,7 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
+            "leftValue": "",
             "typeValidation": "loose",
             "version": 2
           },
@@ -264,64 +298,94 @@
         },
         "options": {}
       },
-      "id": "if-t1",
+      "id": "bb8bef15-fb86-4858-93f6-2297a1133ca0",
       "name": "ACK received? (T1)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1780,
-        240
+        10304,
+        2368
       ]
     },
     {
       "parameters": {
         "jsCode": "const alarm = $('Attach Triage').item.json;\nreturn [{ json: { audit: 'acknowledged', tier: 1, ...alarm, acknowledgedAt: new Date().toISOString() } }];\n"
       },
-      "id": "log-ack1",
+      "id": "b6a25abd-9af5-4f9c-81ba-17753b1b6c31",
       "name": "Log: Acknowledged (T1)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2000,
-        160
+        10304,
+        2208
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://REPLACE-WITH-YOUR-NOTIFICATION-ENDPOINT.example.com/send",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ to: \"backup-tier-2\", severity: $json.severity, summary: ($json.triage || $json.message), source: $json.source, alarmId: $json.alarmId, ackUrl: $execution.resumeUrl }) }}",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f-to",
+              "name": "to",
+              "value": "backup-tier-2",
+              "type": "string"
+            },
+            {
+              "id": "f-sev",
+              "name": "severity",
+              "value": "={{ $json.severity }}",
+              "type": "string"
+            },
+            {
+              "id": "f-sum",
+              "name": "summary",
+              "value": "={{ $json.triage || $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "f-src",
+              "name": "source",
+              "value": "={{ $json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "f-aid",
+              "name": "alarmId",
+              "value": "={{ $json.alarmId }}",
+              "type": "string"
+            },
+            {
+              "id": "f-ack",
+              "name": "ackUrl",
+              "value": "={{ $execution.resumeUrl }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-t2",
+      "id": "36153f55-55ba-45c9-8acd-44373a8ac007",
       "name": "Notify Tier 2 (Backup)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        2000,
-        320
-      ],
-      "onError": "continueRegularOutput"
+        10528,
+        2368
+      ]
     },
     {
       "parameters": {
         "resume": "webhook",
-        "options": {
-          "limitWaitTime": true,
-          "limitType": "afterTimeInterval",
-          "resumeAmount": 5,
-          "resumeUnit": "minutes"
-        }
+        "options": {}
       },
-      "id": "wait-2",
+      "id": "1766f51a-6a31-4a3d-9aa3-284617fbacb6",
       "name": "Wait for ACK (Tier 2)",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2220,
-        320
+        10752,
+        2368
       ],
       "webhookId": "wait-ack-2"
     },
@@ -330,6 +394,7 @@
         "conditions": {
           "options": {
             "caseSensitive": true,
+            "leftValue": "",
             "typeValidation": "loose",
             "version": 2
           },
@@ -349,181 +414,245 @@
         },
         "options": {}
       },
-      "id": "if-t2",
+      "id": "33450d56-17fe-41be-9698-4112d33a90f4",
       "name": "ACK received? (T2)",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2440,
-        320
+        10960,
+        2368
       ]
     },
     {
       "parameters": {
         "jsCode": "const alarm = $('Attach Triage').item.json;\nreturn [{ json: { audit: 'acknowledged', tier: 2, ...alarm, acknowledgedAt: new Date().toISOString() } }];\n"
       },
-      "id": "log-ack2",
+      "id": "19356bbd-e5c5-4247-a098-968210bcc282",
       "name": "Log: Acknowledged (T2)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2660,
-        240
+        10960,
+        2208
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://REPLACE-WITH-YOUR-NOTIFICATION-ENDPOINT.example.com/send",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ to: \"manager-tier-3\", severity: $json.severity, summary: ($json.triage || $json.message), source: $json.source, alarmId: $json.alarmId }) }}",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f-to",
+              "name": "to",
+              "value": "manager-tier-3",
+              "type": "string"
+            },
+            {
+              "id": "f-sev",
+              "name": "severity",
+              "value": "={{ $json.severity }}",
+              "type": "string"
+            },
+            {
+              "id": "f-sum",
+              "name": "summary",
+              "value": "={{ $json.triage || $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "f-src",
+              "name": "source",
+              "value": "={{ $json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "f-aid",
+              "name": "alarmId",
+              "value": "={{ $json.alarmId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-t3",
+      "id": "41656604-63b5-4869-af27-18f7aef4baa3",
       "name": "Notify Tier 3 (Manager)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        2660,
-        400
-      ],
-      "onError": "continueRegularOutput"
+        11184,
+        2368
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// No one acknowledged through tiers 1 and 2 \u2014 escalated to the manager.\nconst alarm = $('Attach Triage').item.json;\nreturn [{ json: { audit: 'escalated_to_manager', tier: 3, ...alarm, escalatedAt: new Date().toISOString() } }];\n"
+        "jsCode": "// No one acknowledged through tiers 1 and 2 — escalated to the manager.\nconst alarm = $('Attach Triage').item.json;\nreturn [{ json: { audit: 'escalated_to_manager', tier: 3, ...alarm, escalatedAt: new Date().toISOString() } }];\n"
       },
-      "id": "log-esc",
+      "id": "a88dd2d1-aedf-49b5-bb04-ddd8168ad986",
       "name": "Log: Escalated to Manager",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2880,
-        400
+        11408,
+        2368
       ]
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://REPLACE-WITH-YOUR-NOTIFICATION-ENDPOINT.example.com/send",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ to: \"warning-channel\", severity: $json.severity, summary: ($json.triage || $json.message), source: $json.source, alarmId: $json.alarmId }) }}",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f-to",
+              "name": "to",
+              "value": "warning-channel",
+              "type": "string"
+            },
+            {
+              "id": "f-sev",
+              "name": "severity",
+              "value": "={{ $json.severity }}",
+              "type": "string"
+            },
+            {
+              "id": "f-sum",
+              "name": "summary",
+              "value": "={{ $json.triage || $json.message }}",
+              "type": "string"
+            },
+            {
+              "id": "f-src",
+              "name": "source",
+              "value": "={{ $json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "f-aid",
+              "name": "alarmId",
+              "value": "={{ $json.alarmId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
         "options": {}
       },
-      "id": "n-warn",
+      "id": "fb107bbf-bd6d-49a3-b298-d87685ca2e1b",
       "name": "Notify (Warning)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        1340,
-        440
-      ],
-      "onError": "continueRegularOutput"
+        9872,
+        2544
+      ]
     },
     {
       "parameters": {
         "jsCode": "const alarm = $('Attach Triage').item.json;\nreturn [{ json: { audit: 'warning_notified', ...alarm, loggedAt: new Date().toISOString() } }];\n"
       },
-      "id": "log-warn",
+      "id": "056dbd9f-6fe8-4e78-a989-6f5ec994770f",
       "name": "Log: Warning Notified",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1560,
-        440
+        10080,
+        2544
       ]
     },
     {
       "parameters": {
         "jsCode": "// Info-level: logged only, no one is paged.\nconst alarm = $('Attach Triage').item.json;\nreturn [{ json: { audit: 'info_logged', ...alarm, loggedAt: new Date().toISOString() } }];\n"
       },
-      "id": "log-info",
+      "id": "cf6f838f-6ee8-4574-8eeb-c4aea1b59201",
       "name": "Log: Info (no page)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1340,
-        600
+        9872,
+        2704
       ]
     },
     {
       "parameters": {
-        "content": "## Alarm Escalation with ACK + Timeout\\n\\nA small **alarm-management** workflow (not just a notifier):\\n\\n1. **Flood suppression** \u2014 repeated/flapping alarms are suppressed within a window\\n2. **Claude triage (advisory, non-blocking)** \u2014 summarizes + suggests likely cause\\n3. **Severity routing** \u2014 critical escalates, warning notifies once, info logs only\\n4. **Tiered escalation** \u2014 notify on-call, wait for ACK, escalate to the next\\n   person if no acknowledgment within the timeout\\n5. **Audit trail** \u2014 every outcome is logged (suppressed / ack'd / escalated)",
-        "height": 220,
-        "width": 620
+        "content": "# 🚨 AI Alarm Escalation — ACK + Timeout\n\n## Who's it for\nTeams running SCADA / industrial / IoT monitoring (or any system that emits alarms) who need on-call alerts that **escalate until a human acknowledges** — not fire-and-forget notifications.\n\n## How it works\n1. **Alarm in** — your source POSTs JSON to the webhook (PLC gateway, Node-RED, or any monitoring tool that can send a request).\n2. **Flood suppression** — repeat / flapping alarms are dropped inside a time window, so one fault pages a person once, not fifty times.\n3. **AI triage (optional)** — Claude summarizes the alarm and suggests a likely cause. Advisory only; it never decides suppression or who to notify.\n4. **Severity routing** — `critical` runs the escalation chain, `warning` notifies once, `info` is logged only.\n5. **Tiered escalation** — notify the on-call person and wait for an ACK. No acknowledgment within the timeout → escalate to the backup, then the manager.\n6. **Audit trail** — every outcome (suppressed / acknowledged / escalated) is logged.\n\n## How to set up\n1. Replace the four **Notify** nodes (currently Set placeholders) with your channel — HTTP Request, Slack, Gmail, or SMS. Keep the `ackUrl` field.\n2. *(Optional)* Enable **Claude Triage** and add a Header Auth credential (`x-api-key` = your Anthropic key).\n3. Wire the **Log** nodes to Google Sheets or a database.\n4. Tune the suppression window (Flood Suppression node) and the ACK timeout (Wait nodes).\n5. Activate the workflow and point your alarm source at the **Production** webhook URL.\n\n## Requirements\n- An alarm source that can POST JSON\n- A notification channel (Slack / email / SMS / webhook)\n- *(Optional)* An Anthropic API key for AI triage",
+        "height": 900,
+        "width": 560,
+        "color": 4
       },
-      "id": "sn-overview",
-      "name": "Sticky Note",
+      "id": "526af28d-b078-4f30-8258-c1149b1455eb",
+      "name": "Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        180,
-        120
+        8096,
+        1408
       ]
     },
     {
       "parameters": {
-        "content": "### AI is advisory only\\nClaude *summarizes* the alarm; it never decides suppression or who to notify \u2014 deterministic rules do. This node is **non-blocking** (onError = continue): if Claude is down or unconfigured, alarms still escalate.\\n\\nAdd a **Header Auth** credential: header `x-api-key` = your Anthropic key.",
-        "height": 120,
-        "width": 300
+        "content": "## AI triage — optional (disabled by default)\nClaude summarizes the alarm and suggests a likely cause. It **never** decides suppression or who to notify — deterministic rules do.\n\nEnable this node and add your Anthropic key to turn it on. Left off, alarms still escalate normally.",
+        "height": 416,
+        "width": 320,
+        "color": 5
       },
-      "id": "sn-triage",
-      "name": "Sticky Note",
+      "id": "7b996b83-8cb6-4151-8629-9a3bfca9a6c7",
+      "name": "AI triage note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        660,
-        250
+        9088,
+        2128
       ]
     },
     {
       "parameters": {
-        "content": "### ACK pattern\\nEach notification includes `ackUrl` = `$execution.resumeUrl`. The recipient opens it (or your system POSTs `{ \"ack\": true }` to it) to acknowledge. No ACK within the timeout \u2192 escalate to the next tier.\\n\\n**Verify** the ACK condition expression and the Wait timeout for your n8n version.",
-        "height": 110,
-        "width": 520
+        "content": "## Acknowledgment pattern\nEach notification carries `ackUrl` (`$execution.resumeUrl`). The recipient taps it — or your system POSTs `{ \"ack\": true }` to it — to acknowledge.\n\nNo ACK before the timeout → the Wait node escalates to the next tier.",
+        "height": 346,
+        "width": 412,
+        "color": 3
       },
-      "id": "sn-ack",
-      "name": "Sticky Note",
+      "id": "a6b78a10-b88b-4ac0-9280-c4c8f6d56f50",
+      "name": "ACK pattern note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1520,
-        120
+        9824,
+        2176
       ]
     },
     {
       "parameters": {
-        "content": "### Wire your notification channel\\nReplace the Notify URLs with your SMS / Slack / Teams / email endpoint. Keep the `ackUrl` field so recipients can acknowledge.",
-        "height": 90,
-        "width": 420
+        "content": "## Wire your notification channel\nThese **Notify** steps are Set-node placeholders so the template runs clean on import. Replace each with an HTTP Request / Slack / Gmail node to your channel, and keep the `ackUrl` field.",
+        "height": 170,
+        "width": 440,
+        "color": 6
       },
-      "id": "sn-notify",
-      "name": "Sticky Note",
+      "id": "e7c0af29-60e8-49d3-8e56-b3d83f092dfe",
+      "name": "Notification channel note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1300,
-        700
+        10464,
+        2032
       ]
     },
     {
       "parameters": {
-        "content": "### Audit trail\\nWire the `Log:` nodes to Google Sheets or a database so every alarm's outcome (suppressed / acknowledged / escalated) is recorded.",
-        "height": 90,
-        "width": 420
+        "content": "## Audit trail\nWire the **Log** nodes to Google Sheets or a database so every alarm's outcome — suppressed / acknowledged / escalated — is recorded with a timestamp.",
+        "height": 170,
+        "width": 460,
+        "color": 2
       },
-      "id": "sn-log",
-      "name": "Sticky Note",
+      "id": "54f7adda-39e7-4aca-9202-a91bc185281c",
+      "name": "Audit trail note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2600,
-        560
+        11008,
+        2032
       ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Alarm Webhook": {
       "main": [
@@ -726,10 +855,17 @@
       ]
     }
   },
+  "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
   },
+  "versionId": "83368531-27b9-4dbf-9493-5dde93fef0fc",
   "meta": {
-    "templateId": "ai-alarm-escalation"
-  }
+    "instanceId": "5deaf722bf8c5c345e49823fdd2d44de15433261b531eae5ce36e019c783f830"
+  },
+  "nodeGroups": [],
+  "id": "GkeZYQBvvEB3Lzqc",
+  "tags": []
 }
